@@ -273,6 +273,11 @@ body {
   cursor: pointer;
 }
 
+.next-btn-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .timeline-box {
   margin: 8px 0 12px;
   background: #ffffff;
@@ -291,6 +296,41 @@ body {
   padding-left: 18px;
   display: grid;
   gap: 6px;
+}
+
+.timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.legend-item::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid #1f2a30;
+}
+
+.legend-positive::before {
+  background: #17a17a;
+}
+
+.legend-neutral::before {
+  background: #e6a529;
+}
+
+.legend-risk::before {
+  background: #d65447;
 }
 
 .timeline-progress {
