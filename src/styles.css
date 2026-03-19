@@ -618,6 +618,91 @@ body {
   padding-left: 18px;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 16, 20, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 30;
+}
+
+.modal-card {
+  width: min(960px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 16px;
+  border: 3px solid #1f2a30;
+  box-shadow: 0 8px 0 #1f2a30;
+  background: #f4efe6;
+  color: #1f2a30;
+  padding: 14px;
+}
+
+.confirm-modal {
+  width: min(560px, 100%);
+  background: #fff7e4;
+}
+
+.confirm-modal h3,
+.final-modal h2 {
+  margin: 0 0 10px;
+}
+
+.final-modal ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.modal-close {
+  border: 1px solid #1f2a30;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2a30;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.modal-btn {
+  border-radius: 9px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.modal-btn.primary {
+  background: #1f2a30;
+  color: #fff6da;
+  border: 1px solid #1f2a30;
+}
+
+.modal-btn.secondary {
+  background: #ffffff;
+  color: #1f2a30;
+  border: 1px solid #1f2a30;
+}
+
+.final-actions {
+  margin-top: 12px;
+}
+
 .assessment-box {
   margin-top: 14px;
   padding: 12px;
@@ -710,6 +795,10 @@ body {
 
   .assessment-grid {
     grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column;
   }
 }
 

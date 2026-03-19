@@ -842,6 +842,8 @@ export default function App() {
   const [collapse, setCollapse] = useState(initialCampaign.collapse);
   const [pendingDecision, setPendingDecision] = useState(initialCampaign.pendingDecision);
   const [decisionLog, setDecisionLog] = useState(initialCampaign.decisionLog || []);
+  const [confirmChoice, setConfirmChoice] = useState(null);
+  const [showFinalModal, setShowFinalModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState(initialCampaign.round > 0 || initialCampaign.pendingDecision ? "Đã khôi phục phiên gần nhất." : "Tự động lưu đang bật.");
 
   const ended = round >= MAX_ROUNDS || collapse !== null;
@@ -882,6 +884,12 @@ export default function App() {
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
     setSaveStatus("Đang tự động lưu tiến trình.");
   }, [round, stats, score, notes, moods, scenarios, collapse, pendingDecision, decisionLog, ended]);
+
+  useEffect(() => {
+    if (ended) {
+      setShowFinalModal(true);
+    }
+  }, [ended]);
 
   const createDecisionReport = (scenario, choice, nextStats) => {
     const deltaLines = [
@@ -955,10 +963,21 @@ export default function App() {
     };
   };
 
-  const onChoose = (choice) => {
-    if (pendingDecision || ended) {
+  const onAskChoose = (choice) => {
+    if (pendingDecision || ended || confirmChoice) {
       return;
     }
+
+    setConfirmChoice(choice);
+  };
+
+  const onConfirmChoose = () => {
+    if (!confirmChoice || pendingDecision || ended) {
+      return;
+    }
+
+    const choice = confirmChoice;
+    setConfirmChoice(null);
 
     const nextStats = {
       growth: clamp(stats.growth + choice.effects.growth, 0, 100),
@@ -999,6 +1018,10 @@ export default function App() {
     }
   };
 
+  const onCancelChoose = () => {
+    setConfirmChoice(null);
+  };
+
   const onContinue = () => {
     if (!pendingDecision) {
       return;
@@ -1030,6 +1053,8 @@ export default function App() {
     setCollapse(null);
     setPendingDecision(null);
     setDecisionLog([]);
+    setConfirmChoice(null);
+    setShowFinalModal(false);
     setSaveStatus("Đã xóa bản lưu cũ và tạo chiến dịch mới.");
   };
 
@@ -1081,7 +1106,7 @@ export default function App() {
             <p className="type-pill">{collapse ? "Khủng hoảng" : ended ? "Tổng kết" : current.type}</p>
           </div>
           <h2>{collapse ? "Nền kinh tế đã rơi vào trạng thái mất điều hòa." : ended ? `Bạn đã hoàn thành ${MAX_ROUNDS} quyết sách chiến lược.` : current.title}</h2>
-          <p>{collapse ? "Các chỉ số nền tảng đã vượt ngưỡng an toàn. Hệ thống dừng để tránh đổ vỡ sâu hơn." : ended ? "Xem kết quả bên dưới và chơi lại để thử một bộ kịch bản thực tế khác." : current.text}</p>
+          <p>{collapse ? "Các chỉ số nền tảng đã vượt ngưỡng an toàn. Hệ thống dừng để tránh đổ vỡ sâu hơn." : ended ? "Bảng tổng kết đã bật ở dạng popup để bạn xem ngay kết quả." : current.text}</p>
 
           {!ended && briefing && (
             <div className="briefing-box">
@@ -1098,7 +1123,7 @@ export default function App() {
           {!ended && (
             <div className="choices">
               {current.choices.map((choice) => (
-                <button key={choice.title} type="button" className="choice-btn" onClick={() => onChoose(choice)} disabled={Boolean(pendingDecision)}>
+                <button key={choice.title} type="button" className="choice-btn" onClick={() => onAskChoose(choice)} disabled={Boolean(pendingDecision || confirmChoice)}>
                   <span className="choice-title">{choice.title}</span>
                   <span className="choice-note">{choice.note}</span>
                 </button>
@@ -1190,10 +1215,30 @@ export default function App() {
               ))}
           </ol>
         </section>
+      </main>
 
-        {ended && (
-          <section className="final" id="finalPanel">
-            <h2>{collapse ? collapse.title : ending.title}</h2>
+      {confirmChoice && !ended && (
+        <section className="modal-overlay" role="dialog" aria-modal="true" aria-label="Xác nhận quyết định chính sách">
+          <div className="modal-card confirm-modal">
+            <h3>Xác nhận lựa chọn</h3>
+            <p>Bạn có chắc muốn chọn phương án này không?</p>
+            <p><strong>{confirmChoice.title}</strong></p>
+            <p>{confirmChoice.note}</p>
+            <div className="modal-actions">
+              <button type="button" className="modal-btn secondary" onClick={onCancelChoose}>Xem lại</button>
+              <button type="button" className="modal-btn primary" onClick={onConfirmChoose}>Chốt quyết định</button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {ended && showFinalModal && (
+        <section className="modal-overlay" role="dialog" aria-modal="true" aria-label="Tổng kết chiến dịch">
+          <div className="modal-card final-modal" id="finalPanel">
+            <div className="modal-head">
+              <h2>{collapse ? collapse.title : ending.title}</h2>
+              <button type="button" className="modal-close" onClick={() => setShowFinalModal(false)}>Đóng</button>
+            </div>
             <p>{collapse ? collapse.text : ending.text}</p>
             <ul>
               {(collapse ? collapse.bullets : ending.bullets).map((b) => (
@@ -1244,12 +1289,17 @@ export default function App() {
               </article>
             )}
 
-            <button id="restartBtn" type="button" onClick={onReset}>
-              Chơi lại với bộ kịch bản mới
-            </button>
-          </section>
-        )}
-      </main>
+            <div className="modal-actions final-actions">
+              <button type="button" className="modal-btn secondary" onClick={() => setShowFinalModal(false)}>
+                Xem nền phía sau
+              </button>
+              <button id="restartBtn" type="button" onClick={onReset}>
+                Chơi lại với bộ kịch bản mới
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
     </>
   );
 }
