@@ -1,0 +1,530 @@
+:root {
+  --bg-top: #0d1b1e;
+  --bg-bottom: #18343d;
+  --card: #f4efe6;
+  --ink: #1f2a30;
+  --accent: #f4a300;
+  --accent-2: #15a27c;
+  --danger: #bf3f34;
+  --neutral: #6a7a85;
+  --display: "Archivo Black", sans-serif;
+  --body: "Be Vietnam Pro", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--body);
+  color: #f8f7f1;
+  background: radial-gradient(circle at 10% 20%, #2d5a61 0%, transparent 30%),
+    radial-gradient(circle at 90% 10%, #8c5d2f 0%, transparent 28%),
+    linear-gradient(170deg, var(--bg-top) 0%, var(--bg-bottom) 65%, #204d56 100%);
+  overflow-x: hidden;
+}
+
+.ambient {
+  position: fixed;
+  width: 32vw;
+  height: 32vw;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.28;
+  z-index: 0;
+  animation: drift 13s ease-in-out infinite alternate;
+}
+
+.ambient-left {
+  top: -8vw;
+  left: -5vw;
+  background: #f4a300;
+}
+
+.ambient-right {
+  right: -10vw;
+  bottom: -11vw;
+  background: #0bd4a3;
+  animation-duration: 17s;
+}
+
+.game-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.top-banner,
+.hud,
+.scenario,
+.actors,
+.knowledge,
+.final {
+  background: color-mix(in srgb, var(--card) 95%, #ffffff 5%);
+  color: var(--ink);
+  border: 3px solid #1f2a30;
+  box-shadow: 0 6px 0 #1f2a30;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.top-banner h1 {
+  margin: 10px 0 8px;
+  font-family: var(--display);
+  line-height: 1.25;
+  letter-spacing: 0.6px;
+  font-size: clamp(14px, 2vw, 22px);
+}
+
+.mode-tag {
+  display: inline-block;
+  background: #132e35;
+  color: #fdde8f;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 2px solid #fdde8f;
+  font-family: var(--display);
+  letter-spacing: 0.4px;
+  font-size: 11px;
+}
+
+.intro {
+  margin: 0;
+  font-size: 15px;
+  max-width: 70ch;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat-card {
+  background: #fffdf7;
+  border: 2px solid #1f2a30;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.stat-card h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-family: var(--display);
+  line-height: 1.4;
+}
+
+.stat-card p {
+  margin: 6px 0 0;
+  font-weight: 800;
+}
+
+.meter {
+  height: 12px;
+  border: 2px solid #1f2a30;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e8ddcb;
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(90deg, #b9382a 0%, #f4a300 35%, #16a077 100%);
+  transition: width 0.45s ease;
+}
+
+.scenario {
+  background: linear-gradient(145deg, #fff6d8 0%, #fdeec1 45%, #f9deb1 100%);
+}
+
+.scenario-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+#roundLabel {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 11px;
+}
+
+.type-pill {
+  margin: 0;
+  background: #132e35;
+  color: #f7f6f2;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#scenarioTitle {
+  margin: 12px 0 8px;
+  font-size: clamp(20px, 2.4vw, 30px);
+}
+
+#scenarioText {
+  margin: 0;
+  max-width: 72ch;
+  line-height: 1.5;
+}
+
+.choices {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.choice-btn {
+  border: 2px solid #1f2a30;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: #1f2a30;
+  text-align: left;
+  font-family: var(--body);
+  padding: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.choice-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.briefing-box {
+  margin-top: 14px;
+  background: #fff9e6;
+  border: 2px solid #d9c08c;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.briefing-context {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.briefing-when {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #19333a;
+}
+
+.briefing-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.briefing-list li {
+  line-height: 1.45;
+}
+
+.decision-result {
+  margin-top: 14px;
+  background: #eef8f6;
+  border: 2px solid #1f2a30;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.decision-result h3 {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 13px;
+}
+
+.result-intro,
+.result-choice,
+.decision-result p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+
+.result-deltas {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.next-btn {
+  border: 0;
+  border-radius: 10px;
+  background: #1f2a30;
+  color: #fff6da;
+  font-family: var(--display);
+  font-size: 11px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.timeline-box {
+  margin: 8px 0 12px;
+  background: #ffffff;
+  border: 1px solid #a9b9bf;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.timeline-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.timeline-box ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.choice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 #1f2a30;
+}
+
+.choice-title {
+  display: block;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.choice-note {
+  font-size: 13px;
+  color: #34444b;
+}
+
+.actors h3,
+.theory h3,
+.knowledge h3,
+.final h2 {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.actor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.actor-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #fffdf6;
+  border: 2px dashed #1f2a30;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.portrait {
+  width: 72px;
+  height: 72px;
+  border: 2px solid #1f2a30;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #d7edf3 0%, #c5e6ef 100%);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.portrait::after {
+  content: "";
+  position: absolute;
+  inset: auto 8px 6px 8px;
+  height: 20px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #0f7d94 25%, #ffffff 75%);
+}
+
+.eye {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1b2830;
+  top: 24px;
+}
+
+.eye.left {
+  left: 20px;
+}
+
+.eye.right {
+  right: 20px;
+}
+
+.mouth {
+  position: absolute;
+  left: 50%;
+  top: 42px;
+  width: 20px;
+  height: 8px;
+  margin-left: -10px;
+  border: 3px solid #1b2830;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  transition: transform 0.22s ease, border-color 0.22s ease;
+}
+
+.mood-good {
+  background: linear-gradient(180deg, #daf8e8 0%, #bbf0d3 100%);
+}
+
+.mood-good .mouth {
+  transform: scaleY(1.15);
+}
+
+.mood-neutral {
+  background: linear-gradient(180deg, #e5edf0 0%, #d6e4ea 100%);
+}
+
+.mood-neutral .mouth {
+  border-top: 3px solid #1b2830;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  height: 2px;
+  top: 45px;
+}
+
+.mood-bad {
+  background: linear-gradient(180deg, #ffe0d9 0%, #ffc9bc 100%);
+}
+
+.mood-bad .mouth {
+  border-top: 3px solid #56221e;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  height: 6px;
+  top: 43px;
+}
+
+.portrait.pulse {
+  animation: pulse 0.5s ease;
+}
+
+.actor-card h4 {
+  margin: 0 0 4px;
+}
+
+.actor-card p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.knowledge ol {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.theory ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.theory li {
+  background: #fff8e8;
+  border: 1px solid #d3c7b0;
+  border-left: 6px solid #d18a1f;
+  padding: 8px;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.knowledge li {
+  background: #fffdf6;
+  border: 1px solid #9ca9b0;
+  border-left: 6px solid #1b9f77;
+  padding: 8px;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.final ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+#restartBtn {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #1f2a30;
+  color: #fff6da;
+  font-family: var(--display);
+  font-size: 11px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .hud {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .game-shell {
+    margin: 12px auto;
+    padding: 12px;
+  }
+
+  .actor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-banner,
+  .hud,
+  .scenario,
+  .actors,
+  .knowledge,
+  .final {
+    padding: 12px;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(12px, -16px) scale(1.08);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
