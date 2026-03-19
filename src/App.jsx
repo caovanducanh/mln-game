@@ -96,17 +96,61 @@ const scenarioBriefings = {
   }
 };
 
-const scenarioWhen = {
-  "Lao động nền tảng số": "Thời điểm phát sinh: Tháng 3-4/2025, sau cao điểm nhu cầu giao nhận đô thị.",
-  "Tiền lương và năng suất": "Thời điểm phát sinh: Quý II/2025, trước kỳ thương lượng lương tối thiểu vùng.",
-  "Nhà ở xã hội": "Thời điểm phát sinh: Giữa năm 2025, khi khu công nghiệp mở rộng tuyển dụng mùa cao điểm.",
-  "Y tế công": "Thời điểm phát sinh: Quý II-III/2025, sau đợt điều chỉnh khung giá dịch vụ y tế.",
-  "Thị trường điện": "Thời điểm phát sinh: Mùa nắng nóng 2025, phụ tải điện đạt đỉnh tại đô thị lớn.",
-  "Nông nghiệp xuất khẩu": "Thời điểm phát sinh: Nửa cuối 2025, khi đối tác nhập khẩu áp chuẩn phát thải mới.",
-  "Tham nhũng và mua sắm công": "Thời điểm phát sinh: Quý III/2025, sau kết luận thanh tra chuyên đề mua sắm công.",
-  "Thương mại điện tử": "Thời điểm phát sinh: Cuối Quý II/2025, khi nhiều sàn điều chỉnh chính sách phí và hiển thị.",
-  "Phát triển vùng": "Thời điểm phát sinh: Kỳ phân bổ kế hoạch đầu tư công năm 2025-2026."
+const scenarioSchedule = {
+  "Lao động nền tảng số": {
+    eventDate: "2025-04-15",
+    context: "sau cao điểm nhu cầu giao nhận đô thị"
+  },
+  "Tiền lương và năng suất": {
+    eventDate: "2025-05-20",
+    context: "trước kỳ thương lượng lương tối thiểu vùng"
+  },
+  "Nhà ở xã hội": {
+    eventDate: "2025-06-10",
+    context: "khi khu công nghiệp mở rộng tuyển dụng mùa cao điểm"
+  },
+  "Y tế công": {
+    eventDate: "2025-07-08",
+    context: "sau đợt điều chỉnh khung giá dịch vụ y tế"
+  },
+  "Thị trường điện": {
+    eventDate: "2025-06-25",
+    context: "giai đoạn phụ tải điện mùa nóng tăng mạnh"
+  },
+  "Nông nghiệp xuất khẩu": {
+    eventDate: "2025-09-05",
+    context: "khi thị trường nhập khẩu siết chuẩn phát thải"
+  },
+  "Tham nhũng và mua sắm công": {
+    eventDate: "2025-08-19",
+    context: "sau kết luận thanh tra chuyên đề mua sắm công"
+  },
+  "Thương mại điện tử": {
+    eventDate: "2025-06-28",
+    context: "sau đợt điều chỉnh phí và hiển thị của nhiều sàn"
+  },
+  "Phát triển vùng": {
+    eventDate: "2025-10-01",
+    context: "kỳ chốt phương án phân bổ đầu tư công trung hạn"
+  }
 };
+
+function formatDateVN(isoDate) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
+function addDays(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addMonths(isoDate, months) {
+  const date = new Date(`${isoDate}T00:00:00`);
+  date.setMonth(date.getMonth() + months);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 const theoryCore = [
   "Quan hệ lợi ích kinh tế là quan hệ phân phối và hưởng lợi giữa Nhà nước, doanh nghiệp, người lao động và cộng đồng.",
@@ -627,7 +671,9 @@ export default function App() {
   const current = scenarios[round];
   const ending = useMemo(() => getEnding(stats), [stats]);
   const briefing = current ? scenarioBriefings[current.type] : null;
-  const whenLabel = current ? scenarioWhen[current.type] : "";
+  const whenLabel = current
+    ? `Thời điểm phát sinh: ${formatDateVN(scenarioSchedule[current.type].eventDate)} (${scenarioSchedule[current.type].context}).`
+    : "";
 
   const createDecisionReport = (scenario, choice, nextStats) => {
     const deltaLines = [
@@ -658,23 +704,27 @@ export default function App() {
           ? "Năng lực quản trị giảm về vùng rủi ro, sai số chính sách và xung đột thực thi dễ tăng."
           : "Năng lực quản trị ở mức trung bình, cần tăng giám sát và phối hợp liên ngành.";
 
+    const baseDate = scenarioSchedule[scenario.type]?.eventDate || "2025-01-15";
     const timeline = [
       {
-        label: "Mốc 2 tuần sau quyết định",
+        label: `Mốc 2 tuần (${formatDateVN(addDays(baseDate, 14))})`,
+        date: addDays(baseDate, 14),
         text:
           choice.effects.trust >= 0
             ? "Dư luận phản hồi tương đối tích cực, mức độ tranh luận chính sách vẫn trong tầm kiểm soát."
             : "Dư luận phản ứng tiêu cực rõ rệt, áp lực truyền thông và kiến nghị xã hội tăng nhanh."
       },
       {
-        label: "Mốc 3 tháng",
+        label: `Mốc 3 tháng (${formatDateVN(addMonths(baseDate, 3))})`,
+        date: addMonths(baseDate, 3),
         text:
           choice.effects.equity >= 0
             ? "Tác động phân phối bắt đầu thể hiện, nhóm dễ tổn thương nhận tín hiệu cải thiện cụ thể hơn."
             : "Khoảng cách lợi ích giữa các nhóm bộc lộ rõ hơn, nguy cơ bất mãn tích tụ tăng."
       },
       {
-        label: "Mốc 12 tháng",
+        label: `Mốc 12 tháng (${formatDateVN(addMonths(baseDate, 12))})`,
+        date: addMonths(baseDate, 12),
         text:
           nextStats.growth >= 55 && nextStats.regulation >= 50
             ? "Nếu duy trì nhất quán, chính sách có thể tạo nền tăng trưởng ổn định và giảm xung đột lợi ích dài hạn."
@@ -836,9 +886,18 @@ export default function App() {
               <p><strong>Kết quả quản trị:</strong> {pendingDecision.governanceOutcome}</p>
               <div className="timeline-box">
                 <p className="timeline-title">Khi nào các tác động này xảy ra?</p>
+                <div className="timeline-progress" aria-hidden="true">
+                  {pendingDecision.timeline.map((item, index) => (
+                    <div className="progress-step" key={`${item.label}-${item.date}`}>
+                      <span className="progress-dot" />
+                      <span className="progress-label">{index === 0 ? "2 tuần" : index === 1 ? "3 tháng" : "12 tháng"}</span>
+                      {index < pendingDecision.timeline.length - 1 && <span className="progress-line" />}
+                    </div>
+                  ))}
+                </div>
                 <ul>
                   {pendingDecision.timeline.map((item) => (
-                    <li key={item.label}>
+                    <li key={`${item.label}-${item.date}`}>
                       <strong>{item.label}:</strong> {item.text}
                     </li>
                   ))}
