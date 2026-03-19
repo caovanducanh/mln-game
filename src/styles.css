@@ -315,6 +315,8 @@ body {
   border: 2px solid #1f2a30;
   background: #17a17a;
   z-index: 2;
+  animation: pulseStep 1.8s infinite ease-in-out;
+  animation-delay: calc(var(--step-index, 0) * 0.35s);
 }
 
 .progress-label {
@@ -331,6 +333,51 @@ body {
   height: 2px;
   background: #1f2a30;
   opacity: 0.45;
+}
+
+.tone-positive .progress-dot {
+  background: #17a17a;
+  border-color: #0e6c52;
+}
+
+.tone-neutral .progress-dot {
+  background: #e6a529;
+  border-color: #8e6416;
+}
+
+.tone-risk .progress-dot {
+  background: #d65447;
+  border-color: #7a2a22;
+}
+
+.timeline-item-positive {
+  border-left: 4px solid #17a17a;
+  padding-left: 8px;
+}
+
+.timeline-item-neutral {
+  border-left: 4px solid #e6a529;
+  padding-left: 8px;
+}
+
+.timeline-item-risk {
+  border-left: 4px solid #d65447;
+  padding-left: 8px;
+}
+
+@keyframes pulseStep {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(31, 42, 48, 0.25);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 8px rgba(31, 42, 48, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(31, 42, 48, 0);
+  }
 }
 
 .choice-btn:hover {

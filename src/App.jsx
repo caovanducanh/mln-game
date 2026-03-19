@@ -709,6 +709,7 @@ export default function App() {
       {
         label: `Mốc 2 tuần (${formatDateVN(addDays(baseDate, 14))})`,
         date: addDays(baseDate, 14),
+        tone: choice.effects.trust >= 4 ? "positive" : choice.effects.trust <= -3 ? "risk" : "neutral",
         text:
           choice.effects.trust >= 0
             ? "Dư luận phản hồi tương đối tích cực, mức độ tranh luận chính sách vẫn trong tầm kiểm soát."
@@ -717,6 +718,7 @@ export default function App() {
       {
         label: `Mốc 3 tháng (${formatDateVN(addMonths(baseDate, 3))})`,
         date: addMonths(baseDate, 3),
+        tone: choice.effects.equity >= 4 ? "positive" : choice.effects.equity <= -3 ? "risk" : "neutral",
         text:
           choice.effects.equity >= 0
             ? "Tác động phân phối bắt đầu thể hiện, nhóm dễ tổn thương nhận tín hiệu cải thiện cụ thể hơn."
@@ -725,6 +727,7 @@ export default function App() {
       {
         label: `Mốc 12 tháng (${formatDateVN(addMonths(baseDate, 12))})`,
         date: addMonths(baseDate, 12),
+        tone: nextStats.growth >= 55 && nextStats.regulation >= 50 ? "positive" : nextStats.growth <= 40 || nextStats.regulation <= 35 ? "risk" : "neutral",
         text:
           nextStats.growth >= 55 && nextStats.regulation >= 50
             ? "Nếu duy trì nhất quán, chính sách có thể tạo nền tăng trưởng ổn định và giảm xung đột lợi ích dài hạn."
@@ -888,24 +891,35 @@ export default function App() {
                 <p className="timeline-title">Khi nào các tác động này xảy ra?</p>
                 <div className="timeline-progress" aria-hidden="true">
                   {pendingDecision.timeline.map((item, index) => (
-                    <div className="progress-step" key={`${item.label}-${item.date}`}>
+                    <div
+                      className={`progress-step tone-${item.tone}`}
+                      key={`${item.label}-${item.date}`}
+                      style={{ "--step-index": index }}
+                    >
                       <span className="progress-dot" />
                       <span className="progress-label">{index === 0 ? "2 tuần" : index === 1 ? "3 tháng" : "12 tháng"}</span>
                       {index < pendingDecision.timeline.length - 1 && <span className="progress-line" />}
                     </div>
                   ))}
                 </div>
+                <div className="timeline-legend" aria-label="Chú giải màu timeline">
+                  <span className="legend-item legend-positive">Xanh: thuận lợi</span>
+                  <span className="legend-item legend-neutral">Vàng: cần theo dõi</span>
+                  <span className="legend-item legend-risk">Đỏ: rủi ro cao</span>
+                </div>
                 <ul>
                   {pendingDecision.timeline.map((item) => (
-                    <li key={`${item.label}-${item.date}`}>
+                    <li key={`${item.label}-${item.date}`} className={`timeline-item timeline-item-${item.tone}`}>
                       <strong>{item.label}:</strong> {item.text}
                     </li>
                   ))}
                 </ul>
               </div>
-              <button type="button" className="next-btn" onClick={onContinue}>
-                {pendingDecision.collapseResult ? "Xác nhận dừng chiến dịch" : "Qua kịch bản tiếp theo"}
-              </button>
+              <div className="next-btn-row">
+                <button type="button" className="next-btn" onClick={onContinue}>
+                  {pendingDecision.collapseResult ? "Xác nhận dừng chiến dịch" : "Qua kịch bản tiếp theo"}
+                </button>
+              </div>
             </article>
           )}
         </section>
