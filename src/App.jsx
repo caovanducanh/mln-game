@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -11,6 +11,124 @@ const initialStats = {
 };
 
 const MAX_ROUNDS = 6;
+const SAVE_KEY = "mln-game-save-v1";
+
+function toBand(score) {
+  if (score >= 85) return "Xuất sắc";
+  if (score >= 70) return "Tốt";
+  if (score >= 55) return "Khá";
+  if (score >= 40) return "Trung bình";
+  return "Cần cải thiện";
+}
+
+function toPercent(value) {
+  return Math.round(clamp(value, 0, 100));
+}
+
+function createManagementAssessment({ stats, score, decisionLog, collapse }) {
+  const safeLog = Array.isArray(decisionLog) ? decisionLog : [];
+  const roundsPlayed = Math.max(1, safeLog.length);
+
+  const aggregate = safeLog.reduce(
+    (acc, item) => {
+      acc.growth += item.effects.growth;
+      acc.equity += item.effects.equity;
+      acc.trust += item.effects.trust;
+      acc.regulation += item.effects.regulation;
+      acc.innovation += item.effects.innovation;
+      return acc;
+    },
+    { growth: 0, equity: 0, trust: 0, regulation: 0, innovation: 0 }
+  );
+
+  const avgGrowthPush = aggregate.growth / roundsPlayed;
+  const avgEquityPush = aggregate.equity / roundsPlayed;
+  const avgTrustPush = aggregate.trust / roundsPlayed;
+  const avgRegPush = aggregate.regulation / roundsPlayed;
+
+  const coordinationBalance =
+    100 -
+    Math.round(
+      (Math.abs(stats.growth - stats.equity) +
+        Math.abs(stats.equity - stats.trust) +
+        Math.abs(stats.trust - stats.regulation)) /
+        3
+    );
+
+  const macroSteering = toPercent(stats.growth * 0.45 + stats.innovation * 0.35 + stats.regulation * 0.2);
+  const socialCoordination = toPercent(stats.equity * 0.45 + stats.trust * 0.35 + stats.regulation * 0.2);
+  const policyExecution = toPercent(stats.regulation * 0.55 + stats.trust * 0.25 + stats.growth * 0.2);
+  const systemicResilience = toPercent((coordinationBalance + Math.min(stats.growth, stats.equity, stats.trust, stats.regulation)) / 2);
+
+  const overallScore = toPercent(
+    macroSteering * 0.28 +
+      socialCoordination * 0.28 +
+      policyExecution * 0.24 +
+      systemicResilience * 0.2 +
+      Math.min(10, Math.max(-10, score / 30))
+  );
+
+  const strengths = [];
+  const risks = [];
+  const actions = [];
+
+  if (macroSteering >= 70) strengths.push("Giữ được động lực tăng trưởng và đổi mới trong điều kiện áp lực chính sách.");
+  if (socialCoordination >= 70) strengths.push("Cân bằng lợi ích xã hội tốt, giảm xung đột giữa các nhóm lợi ích.");
+  if (policyExecution >= 70) strengths.push("Năng lực điều phối và thực thi chính sách ổn định, có tính nhất quán.");
+  if (systemicResilience >= 70) strengths.push("Hệ thống có độ bền cao trước biến động, ít rơi vào lệch pha phát triển.");
+
+  if (stats.equity < 45) risks.push("Công bằng phân phối thấp, nguy cơ bất mãn xã hội và giảm đồng thuận chính sách.");
+  if (stats.trust < 45) risks.push("Niềm tin xã hội yếu, phản ứng dư luận có thể làm giảm hiệu lực điều hành.");
+  if (stats.regulation < 45) risks.push("Năng lực điều tiết còn mỏng, dễ phát sinh độ trễ và xung đột khi triển khai.");
+  if (coordinationBalance < 50) risks.push("Các chỉ số phát triển lệch nhau lớn, hệ thống có dấu hiệu mất nhịp điều phối.");
+  if (collapse) risks.push("Chiến dịch dừng sớm cho thấy ngưỡng an toàn hệ thống đã bị vượt qua.");
+
+  if (avgGrowthPush > 3 && avgEquityPush < 1) {
+    actions.push("Chu kỳ tới cần gắn chính sách thúc tăng trưởng với công cụ bù đắp cho nhóm dễ tổn thương.");
+  }
+  if (avgRegPush < 2) {
+    actions.push("Ưu tiên nâng năng lực thực thi: chuẩn dữ liệu, KPI liên ngành và cơ chế giám sát theo quý.");
+  }
+  if (avgTrustPush < 1) {
+    actions.push("Thiết kế truyền thông chính sách theo từng nhóm đối tượng để phục hồi niềm tin xã hội.");
+  }
+  if (actions.length === 0) {
+    actions.push("Duy trì lộ trình hiện tại nhưng tăng đánh giá tác động định lượng sau mỗi chu kỳ để tránh tự mãn.");
+  }
+
+  const style =
+    avgGrowthPush >= 3 && avgEquityPush >= 3
+      ? "Điều phối cân bằng chủ động"
+      : avgGrowthPush >= 3 && avgEquityPush < 2
+        ? "Thiên về tăng trưởng"
+        : avgGrowthPush < 2 && avgEquityPush >= 3
+          ? "Thiên về an sinh"
+          : "Thận trọng trung tính";
+
+  const intelligenceNote =
+    overallScore >= 75
+      ? "Bạn thể hiện tư duy hệ thống tốt: vừa xử lý mục tiêu ngắn hạn, vừa bảo toàn cấu trúc lợi ích dài hạn."
+      : overallScore >= 55
+        ? "Bạn có nền tảng điều phối khá, nhưng cần tăng độ chính xác trong cân bằng giữa hiệu quả thị trường và ổn định xã hội."
+        : "Mô hình ra quyết định còn phản ứng theo tình huống, cần khung ưu tiên rõ hơn để tránh lệch pha hệ thống.";
+
+  return {
+    overallScore,
+    grade: toBand(overallScore),
+    style,
+    intelligenceNote,
+    roundsPlayed,
+    dimensions: [
+      { name: "Điều hướng vĩ mô", score: macroSteering, band: toBand(macroSteering) },
+      { name: "Điều phối xã hội", score: socialCoordination, band: toBand(socialCoordination) },
+      { name: "Năng lực thực thi", score: policyExecution, band: toBand(policyExecution) },
+      { name: "Độ bền hệ thống", score: systemicResilience, band: toBand(systemicResilience) }
+    ],
+    strengths: strengths.length > 0 ? strengths : ["Bạn giữ được một số cân đối cơ bản nhưng chưa hình thành lợi thế điều phối nổi bật."],
+    risks: risks.length > 0 ? risks : ["Rủi ro hệ thống đang ở mức kiểm soát được, chủ yếu cần duy trì kỷ luật thực thi."],
+    actions
+  };
+}
 
 const scenarioBriefings = {
   "Lao động nền tảng số": {
@@ -657,23 +775,113 @@ function getCollapseResult(stats) {
   };
 }
 
+function createNewCampaignState() {
+  return {
+    round: 0,
+    stats: initialStats,
+    score: 0,
+    notes: baseNotes,
+    moods: baseMoods,
+    scenarios: pickScenarioSet(),
+    collapse: null,
+    pendingDecision: null,
+    decisionLog: []
+  };
+}
+
+function loadSavedCampaign() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    if (!Array.isArray(parsed.scenarios) || typeof parsed.round !== "number") {
+      return null;
+    }
+
+    return {
+      round: parsed.round,
+      stats: parsed.stats || initialStats,
+      score: typeof parsed.score === "number" ? parsed.score : 0,
+      notes: Array.isArray(parsed.notes) ? parsed.notes : baseNotes,
+      moods: parsed.moods || baseMoods,
+      scenarios: parsed.scenarios,
+      collapse: parsed.collapse,
+      pendingDecision: parsed.pendingDecision,
+      decisionLog: Array.isArray(parsed.decisionLog) ? parsed.decisionLog : []
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearSavedCampaign() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(SAVE_KEY);
+  }
+}
+
 export default function App() {
-  const [round, setRound] = useState(0);
-  const [stats, setStats] = useState(initialStats);
-  const [score, setScore] = useState(0);
-  const [notes, setNotes] = useState(baseNotes);
-  const [moods, setMoods] = useState(baseMoods);
-  const [scenarios, setScenarios] = useState(pickScenarioSet);
-  const [collapse, setCollapse] = useState(null);
-  const [pendingDecision, setPendingDecision] = useState(null);
+  const [initialCampaign] = useState(() => loadSavedCampaign() || createNewCampaignState());
+  const [round, setRound] = useState(initialCampaign.round);
+  const [stats, setStats] = useState(initialCampaign.stats);
+  const [score, setScore] = useState(initialCampaign.score);
+  const [notes, setNotes] = useState(initialCampaign.notes);
+  const [moods, setMoods] = useState(initialCampaign.moods);
+  const [scenarios, setScenarios] = useState(initialCampaign.scenarios);
+  const [collapse, setCollapse] = useState(initialCampaign.collapse);
+  const [pendingDecision, setPendingDecision] = useState(initialCampaign.pendingDecision);
+  const [decisionLog, setDecisionLog] = useState(initialCampaign.decisionLog || []);
+  const [saveStatus, setSaveStatus] = useState(initialCampaign.round > 0 || initialCampaign.pendingDecision ? "Đã khôi phục phiên gần nhất." : "Tự động lưu đang bật.");
 
   const ended = round >= MAX_ROUNDS || collapse !== null;
   const current = scenarios[round];
   const ending = useMemo(() => getEnding(stats), [stats]);
+  const managementAssessment = useMemo(
+    () => (ended ? createManagementAssessment({ stats, score, decisionLog, collapse }) : null),
+    [ended, stats, score, decisionLog, collapse]
+  );
   const briefing = current ? scenarioBriefings[current.type] : null;
   const whenLabel = current
     ? `Thời điểm phát sinh: ${formatDateVN(scenarioSchedule[current.type].eventDate)} (${scenarioSchedule[current.type].context}).`
     : "";
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (ended) {
+      clearSavedCampaign();
+      setSaveStatus("Chiến dịch đã kết thúc. Bản lưu tạm đã được xóa.");
+      return;
+    }
+
+    const snapshot = {
+      round,
+      stats,
+      score,
+      notes,
+      moods,
+      scenarios,
+      collapse,
+      pendingDecision,
+      decisionLog
+    };
+
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    setSaveStatus("Đang tự động lưu tiến trình.");
+  }, [round, stats, score, notes, moods, scenarios, collapse, pendingDecision, decisionLog, ended]);
 
   const createDecisionReport = (scenario, choice, nextStats) => {
     const deltaLines = [
@@ -772,6 +980,16 @@ export default function App() {
     setScore((prev) => prev + addScore);
     setMoods(choice.moods);
     setNotes((prev) => [...prev, choice.theory, theoryCore[round % theoryCore.length]]);
+    setDecisionLog((prev) => [
+      ...prev,
+      {
+        round: round + 1,
+        scenarioType: current.type,
+        scenarioTitle: current.title,
+        choiceTitle: choice.title,
+        effects: choice.effects
+      }
+    ]);
     setPendingDecision(createDecisionReport(current, choice, nextStats));
 
     const collapseResult = getCollapseResult(nextStats);
@@ -802,6 +1020,7 @@ export default function App() {
   };
 
   const onReset = () => {
+    clearSavedCampaign();
     setRound(0);
     setStats(initialStats);
     setScore(0);
@@ -810,6 +1029,13 @@ export default function App() {
     setScenarios(pickScenarioSet());
     setCollapse(null);
     setPendingDecision(null);
+    setDecisionLog([]);
+    setSaveStatus("Đã xóa bản lưu cũ và tạo chiến dịch mới.");
+  };
+
+  const onClearSavedOnly = () => {
+    clearSavedCampaign();
+    setSaveStatus("Đã xóa bản lưu trình duyệt.");
   };
 
   return (
@@ -818,12 +1044,18 @@ export default function App() {
       <div className="ambient ambient-right" />
       <main className="game-shell">
         <header className="top-banner">
-          <p className="mode-tag">Single Player | Việt Nam 2025 | React</p>
+          <div className="banner-topline">
+            <p className="mode-tag">Single Player | Việt Nam 2025 | React</p>
+            <button type="button" className="clear-save-btn" onClick={onClearSavedOnly}>
+              Xóa bản lưu
+            </button>
+          </div>
           <h1>CỐ VẤN KINH TẾ: CÂN BẰNG LỢI ÍCH</h1>
           <p className="intro">
             Bạn là cố vấn kinh tế quốc gia. Mỗi quý, bạn chọn chính sách để vừa thúc đẩy tăng trưởng,
             vừa giữ công bằng xã hội, vừa tăng niềm tin.
           </p>
+          <p className="save-status">{saveStatus}</p>
         </header>
 
         <section className="hud" aria-label="Bảng thông số quốc gia">
@@ -968,6 +1200,50 @@ export default function App() {
                 <li key={b}>{b}</li>
               ))}
             </ul>
+
+            {managementAssessment && (
+              <article className="assessment-box" aria-label="Đánh giá năng lực điều phối kinh tế">
+                <h3>Đánh giá năng lực quản lý điều phối kinh tế</h3>
+                <p>
+                  <strong>Điểm tổng hợp:</strong> {managementAssessment.overallScore}/100 ({managementAssessment.grade})
+                </p>
+                <p>
+                  <strong>Phong cách điều phối:</strong> {managementAssessment.style} | <strong>Số quyết sách đã xử lý:</strong> {managementAssessment.roundsPlayed}
+                </p>
+                <p>{managementAssessment.intelligenceNote}</p>
+
+                <div className="assessment-grid">
+                  {managementAssessment.dimensions.map((item) => (
+                    <div key={item.name} className="assessment-item">
+                      <p className="assessment-name">{item.name}</p>
+                      <p className="assessment-score">{item.score}/100 - {item.band}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <p><strong>Điểm mạnh nổi bật:</strong></p>
+                <ul>
+                  {managementAssessment.strengths.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+
+                <p><strong>Rủi ro cần lưu ý:</strong></p>
+                <ul>
+                  {managementAssessment.risks.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+
+                <p><strong>Khuyến nghị chu kỳ tiếp theo:</strong></p>
+                <ul>
+                  {managementAssessment.actions.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+            )}
+
             <button id="restartBtn" type="button" onClick={onReset}>
               Chơi lại với bộ kịch bản mới
             </button>
