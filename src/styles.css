@@ -665,12 +665,18 @@ body {
 
 .modal-close {
   border: 1px solid #1f2a30;
-  border-radius: 8px;
+  border-radius: 999px;
   background: #ffffff;
   color: #1f2a30;
   font-weight: 700;
-  padding: 6px 10px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: pointer;
+  text-transform: uppercase;
 }
 
 .modal-actions {
@@ -703,6 +709,22 @@ body {
   margin-top: 12px;
 }
 
+.reopen-summary-btn {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 25;
+  border: 2px solid #1f2a30;
+  border-radius: 10px;
+  background: #fff3cf;
+  color: #1f2a30;
+  font-family: var(--display);
+  font-size: 11px;
+  padding: 10px 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #1f2a30;
+}
+
 .assessment-box {
   margin-top: 14px;
   padding: 12px;
@@ -729,6 +751,10 @@ body {
   margin: 10px 0;
 }
 
+.deep-grid {
+  margin-top: 4px;
+}
+
 .assessment-item {
   border: 1px solid #a2b7c0;
   border-radius: 10px;
@@ -750,6 +776,23 @@ body {
   padding-left: 18px;
   display: grid;
   gap: 5px;
+}
+
+.assessment-highlight {
+  margin: 0 0 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #a2b7c0;
+}
+
+.decision-trace {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #a2b7c0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #ffffff;
 }
 
 #restartBtn {
@@ -799,6 +842,11 @@ body {
 
   .modal-actions {
     flex-direction: column;
+  }
+
+  .reopen-summary-btn {
+    right: 12px;
+    bottom: 12px;
   }
 }
 

@@ -29,6 +29,28 @@ function createManagementAssessment({ stats, score, decisionLog, collapse }) {
   const safeLog = Array.isArray(decisionLog) ? decisionLog : [];
   const roundsPlayed = Math.max(1, safeLog.length);
 
+  const getImpactScore = (effects) =>
+    effects.growth * 1 + effects.equity * 1.1 + effects.trust * 1.2 + effects.regulation * 1.1 + effects.innovation * 0.9;
+
+  const decisionDiagnostics = safeLog.map((item) => {
+    const impactScore = Math.round(getImpactScore(item.effects));
+    const growthBias = item.effects.growth + item.effects.innovation;
+    const socialBias = item.effects.equity + item.effects.trust;
+
+    const profile =
+      growthBias - socialBias >= 4
+        ? "Thiên tăng trưởng"
+        : socialBias - growthBias >= 4
+          ? "Thiên xã hội"
+          : "Cân bằng";
+
+    return {
+      ...item,
+      impactScore,
+      profile
+    };
+  });
+
   const aggregate = safeLog.reduce(
     (acc, item) => {
       acc.growth += item.effects.growth;
@@ -45,6 +67,23 @@ function createManagementAssessment({ stats, score, decisionLog, collapse }) {
   const avgEquityPush = aggregate.equity / roundsPlayed;
   const avgTrustPush = aggregate.trust / roundsPlayed;
   const avgRegPush = aggregate.regulation / roundsPlayed;
+
+  const avgImpact = decisionDiagnostics.reduce((sum, item) => sum + item.impactScore, 0) / roundsPlayed;
+  const volatility = Math.round(
+    decisionDiagnostics.reduce((sum, item) => sum + Math.abs(item.impactScore - avgImpact), 0) / roundsPlayed
+  );
+
+  const growthTiltCount = decisionDiagnostics.filter((item) => item.profile === "Thiên tăng trưởng").length;
+  const socialTiltCount = decisionDiagnostics.filter((item) => item.profile === "Thiên xã hội").length;
+  const balancedCount = decisionDiagnostics.filter((item) => item.profile === "Cân bằng").length;
+
+  const firstHalf = decisionDiagnostics.slice(0, Math.ceil(decisionDiagnostics.length / 2));
+  const secondHalf = decisionDiagnostics.slice(Math.ceil(decisionDiagnostics.length / 2));
+  const firstHalfAvg =
+    firstHalf.length > 0 ? firstHalf.reduce((sum, item) => sum + item.impactScore, 0) / firstHalf.length : 0;
+  const secondHalfAvg =
+    secondHalf.length > 0 ? secondHalf.reduce((sum, item) => sum + item.impactScore, 0) / secondHalf.length : firstHalfAvg;
+  const trajectoryDelta = Math.round(secondHalfAvg - firstHalfAvg);
 
   const coordinationBalance =
     100 -
@@ -112,6 +151,43 @@ function createManagementAssessment({ stats, score, decisionLog, collapse }) {
         ? "Bạn có nền tảng điều phối khá, nhưng cần tăng độ chính xác trong cân bằng giữa hiệu quả thị trường và ổn định xã hội."
         : "Mô hình ra quyết định còn phản ứng theo tình huống, cần khung ưu tiên rõ hơn để tránh lệch pha hệ thống.";
 
+  const bestTurn =
+    decisionDiagnostics.length > 0
+      ? decisionDiagnostics.reduce((best, item) => (item.impactScore > best.impactScore ? item : best), decisionDiagnostics[0])
+      : null;
+
+  const riskTurn =
+    decisionDiagnostics.length > 0
+      ? decisionDiagnostics.reduce((worst, item) => (item.impactScore < worst.impactScore ? item : worst), decisionDiagnostics[0])
+      : null;
+
+  const stabilityBand = volatility <= 6 ? "Ổn định cao" : volatility <= 12 ? "Ổn định vừa" : "Biến động mạnh";
+
+  const strategicSignals = [];
+  if (trajectoryDelta >= 4) {
+    strategicSignals.push("Hiệu quả điều phối cải thiện dần qua các quý, cho thấy năng lực học chính sách tốt.");
+  } else if (trajectoryDelta <= -4) {
+    strategicSignals.push("Chất lượng quyết sách giảm ở nửa sau chiến dịch, cần cơ chế kiểm soát sai lệch kịp thời.");
+  } else {
+    strategicSignals.push("Hiệu quả điều phối giữa hai nửa chiến dịch tương đối ngang nhau, chưa tạo đột phá rõ rệt.");
+  }
+
+  if (balancedCount >= Math.ceil(roundsPlayed * 0.5)) {
+    strategicSignals.push("Tỷ lệ quyết định cân bằng cao, giúp giảm rủi ro lệch pha giữa tăng trưởng và an sinh.");
+  } else if (growthTiltCount > socialTiltCount) {
+    strategicSignals.push("Chuỗi quyết sách nghiêng tăng trưởng, cần gia cố các công cụ phân phối và niềm tin xã hội.");
+  } else if (socialTiltCount > growthTiltCount) {
+    strategicSignals.push("Chuỗi quyết sách nghiêng an sinh, cần bổ sung động lực năng suất và đổi mới để giữ tăng trưởng dài hạn.");
+  }
+
+  const decisionSummary = decisionDiagnostics.map((item) => ({
+    round: item.round,
+    scenarioType: item.scenarioType,
+    choiceTitle: item.choiceTitle,
+    impactScore: item.impactScore,
+    profile: item.profile
+  }));
+
   return {
     overallScore,
     grade: toBand(overallScore),
@@ -124,6 +200,19 @@ function createManagementAssessment({ stats, score, decisionLog, collapse }) {
       { name: "Năng lực thực thi", score: policyExecution, band: toBand(policyExecution) },
       { name: "Độ bền hệ thống", score: systemicResilience, band: toBand(systemicResilience) }
     ],
+    strategicDepth: {
+      averageImpact: Math.round(avgImpact),
+      trajectoryDelta,
+      stabilityBand,
+      volatility,
+      growthTiltPct: toPercent((growthTiltCount / roundsPlayed) * 100),
+      socialTiltPct: toPercent((socialTiltCount / roundsPlayed) * 100),
+      balancedPct: toPercent((balancedCount / roundsPlayed) * 100),
+      bestTurn,
+      riskTurn,
+      signals: strategicSignals
+    },
+    decisionSummary,
     strengths: strengths.length > 0 ? strengths : ["Bạn giữ được một số cân đối cơ bản nhưng chưa hình thành lợi thế điều phối nổi bật."],
     risks: risks.length > 0 ? risks : ["Rủi ro hệ thống đang ở mức kiểm soát được, chủ yếu cần duy trì kỷ luật thực thi."],
     actions
@@ -1103,7 +1192,13 @@ export default function App() {
         <section className="scenario" aria-live="polite">
           <div className="scenario-topline">
             <p id="roundLabel">{collapse ? "Chiến dịch dừng sớm" : ended ? "Chiến dịch kết thúc" : `Quý ${round + 1} / ${MAX_ROUNDS}`}</p>
-            <p className="type-pill">{collapse ? "Khủng hoảng" : ended ? "Tổng kết" : current.type}</p>
+            {ended && !showFinalModal ? (
+              <button type="button" className="type-pill reopen-pill" onClick={() => setShowFinalModal(true)}>
+                Xem lại tổng kết
+              </button>
+            ) : (
+              <p className="type-pill">{collapse ? "Khủng hoảng" : ended ? "Tổng kết" : current.type}</p>
+            )}
           </div>
           <h2>{collapse ? "Nền kinh tế đã rơi vào trạng thái mất điều hòa." : ended ? `Bạn đã hoàn thành ${MAX_ROUNDS} quyết sách chiến lược.` : current.title}</h2>
           <p>{collapse ? "Các chỉ số nền tảng đã vượt ngưỡng an toàn. Hệ thống dừng để tránh đổ vỡ sâu hơn." : ended ? "Bảng tổng kết đã bật ở dạng popup để bạn xem ngay kết quả." : current.text}</p>
@@ -1237,7 +1332,7 @@ export default function App() {
           <div className="modal-card final-modal" id="finalPanel">
             <div className="modal-head">
               <h2>{collapse ? collapse.title : ending.title}</h2>
-              <button type="button" className="modal-close" onClick={() => setShowFinalModal(false)}>Đóng</button>
+              <button type="button" className="modal-close" aria-label="Đóng tổng kết" onClick={() => setShowFinalModal(false)}>x</button>
             </div>
             <p>{collapse ? collapse.text : ending.text}</p>
             <ul>
@@ -1265,6 +1360,63 @@ export default function App() {
                     </div>
                   ))}
                 </div>
+
+                <div className="assessment-grid deep-grid">
+                  <div className="assessment-item">
+                    <p className="assessment-name">Điểm tác động trung bình mỗi quý</p>
+                    <p className="assessment-score">{managementAssessment.strategicDepth.averageImpact}</p>
+                  </div>
+                  <div className="assessment-item">
+                    <p className="assessment-name">Quỹ đạo nửa sau so với nửa đầu</p>
+                    <p className="assessment-score">
+                      {managementAssessment.strategicDepth.trajectoryDelta >= 0 ? "+" : ""}
+                      {managementAssessment.strategicDepth.trajectoryDelta} điểm tác động
+                    </p>
+                  </div>
+                  <div className="assessment-item">
+                    <p className="assessment-name">Độ ổn định điều hành</p>
+                    <p className="assessment-score">
+                      {managementAssessment.strategicDepth.stabilityBand} (dao động {managementAssessment.strategicDepth.volatility})
+                    </p>
+                  </div>
+                  <div className="assessment-item">
+                    <p className="assessment-name">Cơ cấu thiên hướng quyết sách</p>
+                    <p className="assessment-score">
+                      Tăng trưởng {managementAssessment.strategicDepth.growthTiltPct}% | Xã hội {managementAssessment.strategicDepth.socialTiltPct}% | Cân bằng {managementAssessment.strategicDepth.balancedPct}%
+                    </p>
+                  </div>
+                </div>
+
+                <p><strong>Điểm ngoặt tích cực nhất:</strong></p>
+                <p className="assessment-highlight">
+                  {managementAssessment.strategicDepth.bestTurn
+                    ? `Quý ${managementAssessment.strategicDepth.bestTurn.round} - ${managementAssessment.strategicDepth.bestTurn.scenarioType}: ${managementAssessment.strategicDepth.bestTurn.choiceTitle} (tác động ${managementAssessment.strategicDepth.bestTurn.impactScore}).`
+                    : "Chưa đủ dữ liệu."}
+                </p>
+
+                <p><strong>Điểm ngoặt rủi ro nhất:</strong></p>
+                <p className="assessment-highlight">
+                  {managementAssessment.strategicDepth.riskTurn
+                    ? `Quý ${managementAssessment.strategicDepth.riskTurn.round} - ${managementAssessment.strategicDepth.riskTurn.scenarioType}: ${managementAssessment.strategicDepth.riskTurn.choiceTitle} (tác động ${managementAssessment.strategicDepth.riskTurn.impactScore}).`
+                    : "Chưa đủ dữ liệu."}
+                </p>
+
+                <p><strong>Tín hiệu chiến lược:</strong></p>
+                <ul>
+                  {managementAssessment.strategicDepth.signals.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+
+                <p><strong>Nhật ký quyết sách theo quý:</strong></p>
+                <ul className="decision-trace">
+                  {managementAssessment.decisionSummary.map((item) => (
+                    <li key={`${item.round}-${item.choiceTitle}`}>
+                      <strong>Q{item.round}</strong> | {item.scenarioType} | {item.profile} | {item.impactScore >= 0 ? "+" : ""}
+                      {item.impactScore}: {item.choiceTitle}
+                    </li>
+                  ))}
+                </ul>
 
                 <p><strong>Điểm mạnh nổi bật:</strong></p>
                 <ul>
@@ -1300,6 +1452,7 @@ export default function App() {
           </div>
         </section>
       )}
+
     </>
   );
 }
