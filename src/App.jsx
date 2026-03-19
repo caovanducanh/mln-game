@@ -25,6 +25,104 @@ function toPercent(value) {
   return Math.round(clamp(value, 0, 100));
 }
 
+function classifyPolicyProfile(effects) {
+  const growthAxis = effects.growth + effects.innovation;
+  const socialAxis = effects.equity + effects.trust;
+
+  if (growthAxis - socialAxis >= 4) return "Thiên tăng trưởng";
+  if (socialAxis - growthAxis >= 4) return "Thiên xã hội";
+  return "Cân bằng";
+}
+
+function roundEffects(effects) {
+  return {
+    growth: Math.round(effects.growth),
+    equity: Math.round(effects.equity),
+    trust: Math.round(effects.trust),
+    regulation: Math.round(effects.regulation),
+    innovation: Math.round(effects.innovation)
+  };
+}
+
+function applyDynamicPolicyModel({ baseEffects, stats, decisionLog }) {
+  const adjusted = { ...baseEffects };
+  const modelNotes = [];
+
+  if (stats.regulation < 45) {
+    adjusted.growth = adjusted.growth > 0 ? adjusted.growth * 0.9 : adjusted.growth * 1.15;
+    adjusted.equity = adjusted.equity > 0 ? adjusted.equity * 0.88 : adjusted.equity * 1.2;
+    adjusted.trust = adjusted.trust > 0 ? adjusted.trust * 0.85 : adjusted.trust * 1.25;
+    modelNotes.push("Hiệu lực thực thi thấp làm chính sách bị hao hụt và rủi ro truyền thông tăng.");
+  }
+
+  if (stats.trust >= 65 && (adjusted.equity > 0 || adjusted.trust > 0)) {
+    adjusted.equity += 1;
+    adjusted.trust += 1;
+    modelNotes.push("Niềm tin xã hội cao tạo hiệu ứng cộng hưởng cho các mục tiêu phân phối.");
+  }
+
+  const imbalance = stats.growth - stats.equity;
+  if (Math.abs(imbalance) >= 20) {
+    const widenGap = imbalance > 0 ? adjusted.growth > adjusted.equity : adjusted.equity > adjusted.growth;
+    if (widenGap) {
+      adjusted.trust -= 2;
+      adjusted.regulation -= 1;
+      modelNotes.push("Nền kinh tế đang lệch pha, lựa chọn này làm tăng áp lực phản ứng xã hội.");
+    }
+  }
+
+  const recent = decisionLog.slice(-2);
+  const recentProfile = recent.length > 0 ? recent.every((item) => item.profile === recent[0].profile) ? recent[0].profile : null : null;
+  const currentProfile = classifyPolicyProfile(baseEffects);
+  if (recentProfile && recentProfile === currentProfile && currentProfile !== "Cân bằng") {
+    if (currentProfile === "Thiên tăng trưởng") {
+      adjusted.growth -= 1;
+      adjusted.trust -= 1;
+      adjusted.equity -= 1;
+    } else {
+      adjusted.growth -= 1;
+      adjusted.innovation -= 1;
+    }
+    modelNotes.push("Chuỗi quyết sách cùng thiên hướng gây hiệu ứng mệt mỏi chính sách và giảm hiệu quả biên.");
+  }
+
+  const roundedAdjusted = roundEffects(adjusted);
+
+  const carryoverEffects = { growth: 0, equity: 0, trust: 0, regulation: 0, innovation: 0 };
+  if (roundedAdjusted.trust + roundedAdjusted.equity >= 10) {
+    carryoverEffects.trust += 1;
+    carryoverEffects.regulation += 1;
+  }
+  if (roundedAdjusted.growth + roundedAdjusted.innovation >= 10) {
+    carryoverEffects.growth += 1;
+    carryoverEffects.innovation += 1;
+  }
+  if (roundedAdjusted.trust + roundedAdjusted.equity <= -8) {
+    carryoverEffects.trust -= 2;
+    carryoverEffects.equity -= 1;
+  }
+  if (roundedAdjusted.regulation <= -4) {
+    carryoverEffects.regulation -= 1;
+  }
+
+  const hasCarryover = Object.values(carryoverEffects).some((value) => value !== 0);
+
+  const carryoverNarrative = hasCarryover
+    ? carryoverEffects.trust + carryoverEffects.equity >= 1
+      ? "Hiệu ứng lan tỏa quý sau: niềm tin và phối hợp thể chế được cải thiện thêm."
+      : "Hiệu ứng lan tỏa quý sau: áp lực xã hội còn dư âm, cần quyết sách bù đắp kịp thời."
+    : "Hiệu ứng lan tỏa quý sau ở mức trung tính.";
+
+  return {
+    adjustedEffects: roundedAdjusted,
+    carryoverEffects,
+    hasCarryover,
+    carryoverNarrative,
+    modelNotes,
+    profile: currentProfile
+  };
+}
+
 function createManagementAssessment({ stats, score, decisionLog, collapse }) {
   const safeLog = Array.isArray(decisionLog) ? decisionLog : [];
   const roundsPlayed = Math.max(1, safeLog.length);
@@ -946,6 +1044,29 @@ export default function App() {
   const whenLabel = current
     ? `Thời điểm phát sinh: ${formatDateVN(scenarioSchedule[current.type].eventDate)} (${scenarioSchedule[current.type].context}).`
     : "";
+  const systemPulse = useMemo(() => {
+    const riskPressure = Math.round(
+      (Math.max(0, 55 - stats.trust) +
+        Math.max(0, 55 - stats.equity) +
+        Math.max(0, 55 - stats.regulation) +
+        Math.abs(stats.growth - stats.equity) * 0.5) /
+        2
+    );
+
+    const trend = decisionLog.slice(-3);
+    const trendScore =
+      trend.length > 0
+        ? Math.round(
+            trend.reduce((sum, item) => sum + item.effects.growth + item.effects.equity + item.effects.trust + item.effects.regulation, 0) /
+              trend.length
+          )
+        : 0;
+
+    const trendLabel = trendScore >= 10 ? "Đà cải thiện" : trendScore <= -5 ? "Đà suy giảm" : "Đà trung tính";
+    const riskLabel = riskPressure >= 35 ? "Áp lực cao" : riskPressure >= 20 ? "Áp lực vừa" : "Áp lực thấp";
+
+    return { riskPressure, trendScore, trendLabel, riskLabel };
+  }, [stats, decisionLog]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -980,25 +1101,25 @@ export default function App() {
     }
   }, [ended]);
 
-  const createDecisionReport = (scenario, choice, nextStats) => {
+  const createDecisionReport = (scenario, choice, nextStats, resolvedEffects, dynamicMeta) => {
     const deltaLines = [
-      `Tăng trưởng: ${choice.effects.growth >= 0 ? "+" : ""}${choice.effects.growth}`,
-      `Công bằng: ${choice.effects.equity >= 0 ? "+" : ""}${choice.effects.equity}`,
-      `Niềm tin xã hội: ${choice.effects.trust >= 0 ? "+" : ""}${choice.effects.trust}`,
-      `Năng lực điều tiết: ${choice.effects.regulation >= 0 ? "+" : ""}${choice.effects.regulation}`
+      `Tăng trưởng: ${resolvedEffects.growth >= 0 ? "+" : ""}${resolvedEffects.growth}`,
+      `Công bằng: ${resolvedEffects.equity >= 0 ? "+" : ""}${resolvedEffects.equity}`,
+      `Niềm tin xã hội: ${resolvedEffects.trust >= 0 ? "+" : ""}${resolvedEffects.trust}`,
+      `Năng lực điều tiết: ${resolvedEffects.regulation >= 0 ? "+" : ""}${resolvedEffects.regulation}`
     ];
 
     const socialOutcome =
-      choice.effects.equity + choice.effects.trust >= 12
+      resolvedEffects.equity + resolvedEffects.trust >= 12
         ? "Mặt bằng đồng thuận xã hội được cải thiện, rủi ro xung đột lợi ích giảm trong ngắn hạn."
-        : choice.effects.equity + choice.effects.trust <= -8
+        : resolvedEffects.equity + resolvedEffects.trust <= -8
           ? "Xã hội xuất hiện tín hiệu bất mãn rõ hơn, nguy cơ phản ứng dây chuyền trong các nhóm yếu thế tăng."
           : "Tác động xã hội ở mức trung tính, cần theo dõi thêm dữ liệu thực thi trước khi mở rộng chính sách.";
 
     const marketOutcome =
-      choice.effects.growth + choice.effects.innovation >= 10
+      resolvedEffects.growth + resolvedEffects.innovation >= 10
         ? "Thị trường nhận tín hiệu tích cực về động lực đầu tư và đổi mới công nghệ."
-        : choice.effects.growth + choice.effects.innovation <= -5
+        : resolvedEffects.growth + resolvedEffects.innovation <= -5
           ? "Động lực thị trường suy giảm, doanh nghiệp có xu hướng trì hoãn đầu tư mới."
           : "Động lực thị trường duy trì mức vừa phải, chưa tạo chuyển biến mạnh về năng suất.";
 
@@ -1014,18 +1135,18 @@ export default function App() {
       {
         label: `Mốc 2 tuần (${formatDateVN(addDays(baseDate, 14))})`,
         date: addDays(baseDate, 14),
-        tone: choice.effects.trust >= 4 ? "positive" : choice.effects.trust <= -3 ? "risk" : "neutral",
+        tone: resolvedEffects.trust >= 4 ? "positive" : resolvedEffects.trust <= -3 ? "risk" : "neutral",
         text:
-          choice.effects.trust >= 0
+          resolvedEffects.trust >= 0
             ? "Dư luận phản hồi tương đối tích cực, mức độ tranh luận chính sách vẫn trong tầm kiểm soát."
             : "Dư luận phản ứng tiêu cực rõ rệt, áp lực truyền thông và kiến nghị xã hội tăng nhanh."
       },
       {
         label: `Mốc 3 tháng (${formatDateVN(addMonths(baseDate, 3))})`,
         date: addMonths(baseDate, 3),
-        tone: choice.effects.equity >= 4 ? "positive" : choice.effects.equity <= -3 ? "risk" : "neutral",
+        tone: resolvedEffects.equity >= 4 ? "positive" : resolvedEffects.equity <= -3 ? "risk" : "neutral",
         text:
-          choice.effects.equity >= 0
+          resolvedEffects.equity >= 0
             ? "Tác động phân phối bắt đầu thể hiện, nhóm dễ tổn thương nhận tín hiệu cải thiện cụ thể hơn."
             : "Khoảng cách lợi ích giữa các nhóm bộc lộ rõ hơn, nguy cơ bất mãn tích tụ tăng."
       },
@@ -1045,10 +1166,15 @@ export default function App() {
       chosenTitle: choice.title,
       immediate: `Bạn đã chọn phương án: ${choice.title}. Quyết định này tạo tác động tức thời lên cân bằng lợi ích giữa Nhà nước, doanh nghiệp, người lao động và cộng đồng.`,
       deltaLines,
+      profile: dynamicMeta.profile,
+      modelNotes: dynamicMeta.modelNotes,
       socialOutcome,
       marketOutcome,
       governanceOutcome,
-      timeline
+      timeline,
+      carryoverEffects: dynamicMeta.carryoverEffects,
+      hasCarryover: dynamicMeta.hasCarryover,
+      carryoverNarrative: dynamicMeta.carryoverNarrative
     };
   };
 
@@ -1068,22 +1194,29 @@ export default function App() {
     const choice = confirmChoice;
     setConfirmChoice(null);
 
+    const dynamicMeta = applyDynamicPolicyModel({
+      baseEffects: choice.effects,
+      stats,
+      decisionLog
+    });
+    const resolvedEffects = dynamicMeta.adjustedEffects;
+
     const nextStats = {
-      growth: clamp(stats.growth + choice.effects.growth, 0, 100),
-      equity: clamp(stats.equity + choice.effects.equity, 0, 100),
-      trust: clamp(stats.trust + choice.effects.trust, 0, 100),
-      regulation: clamp(stats.regulation + choice.effects.regulation, 0, 100),
-      innovation: clamp(stats.innovation + choice.effects.innovation, 0, 100)
+      growth: clamp(stats.growth + resolvedEffects.growth, 0, 100),
+      equity: clamp(stats.equity + resolvedEffects.equity, 0, 100),
+      trust: clamp(stats.trust + resolvedEffects.trust, 0, 100),
+      regulation: clamp(stats.regulation + resolvedEffects.regulation, 0, 100),
+      innovation: clamp(stats.innovation + resolvedEffects.innovation, 0, 100)
     };
 
     setStats(nextStats);
 
     const addScore =
-      choice.effects.growth * 1.2 +
-      choice.effects.equity * 1.3 +
-      choice.effects.trust * 1.4 +
-      choice.effects.regulation * 1.1 +
-      choice.effects.innovation;
+      resolvedEffects.growth * 1.2 +
+      resolvedEffects.equity * 1.3 +
+      resolvedEffects.trust * 1.4 +
+      resolvedEffects.regulation * 1.1 +
+      resolvedEffects.innovation;
 
     setScore((prev) => prev + addScore);
     setMoods(choice.moods);
@@ -1095,10 +1228,13 @@ export default function App() {
         scenarioType: current.type,
         scenarioTitle: current.title,
         choiceTitle: choice.title,
-        effects: choice.effects
+        profile: dynamicMeta.profile,
+        effects: resolvedEffects,
+        baseEffects: choice.effects,
+        carryoverEffects: dynamicMeta.carryoverEffects
       }
     ]);
-    setPendingDecision(createDecisionReport(current, choice, nextStats));
+    setPendingDecision(createDecisionReport(current, choice, nextStats, resolvedEffects, dynamicMeta));
 
     const collapseResult = getCollapseResult(nextStats);
     if (collapseResult) {
@@ -1125,6 +1261,27 @@ export default function App() {
       ]);
       setPendingDecision(null);
       return;
+    }
+
+    if (pendingDecision.hasCarryover) {
+      const carry = pendingDecision.carryoverEffects;
+      const carriedStats = {
+        growth: clamp(stats.growth + carry.growth, 0, 100),
+        equity: clamp(stats.equity + carry.equity, 0, 100),
+        trust: clamp(stats.trust + carry.trust, 0, 100),
+        regulation: clamp(stats.regulation + carry.regulation, 0, 100),
+        innovation: clamp(stats.innovation + carry.innovation, 0, 100)
+      };
+
+      setStats(carriedStats);
+      setNotes((prev) => [...prev, pendingDecision.carryoverNarrative]);
+
+      const carryCollapse = getCollapseResult(carriedStats);
+      if (carryCollapse) {
+        setCollapse(carryCollapse);
+        setPendingDecision(null);
+        return;
+      }
     }
 
     setRound((prev) => prev + 1);
@@ -1207,6 +1364,15 @@ export default function App() {
             <div className="briefing-box">
               <p className="briefing-when">{whenLabel}</p>
               <p className="briefing-context">{briefing.deepContext}</p>
+              <div className="system-pulse">
+                <p>
+                  <strong>Trạng thái hệ thống hiện tại:</strong> {systemPulse.riskLabel} | {systemPulse.trendLabel}
+                </p>
+                <p>
+                  Áp lực tích lũy: {systemPulse.riskPressure} | Xung lực 3 quý gần nhất: {systemPulse.trendScore >= 0 ? "+" : ""}
+                  {systemPulse.trendScore}
+                </p>
+              </div>
               <ul className="briefing-list">
                 {briefing.bullets.map((item) => (
                   <li key={item}>{item}</li>
@@ -1231,14 +1397,28 @@ export default function App() {
               <h3>Phản ứng sau quyết định</h3>
               <p className="result-intro">{pendingDecision.immediate}</p>
               <p className="result-choice"><strong>Phương án đã chọn:</strong> {pendingDecision.chosenTitle}</p>
+              <p className="result-choice"><strong>Hồ sơ chính sách:</strong> {pendingDecision.profile}</p>
               <ul className="result-deltas">
                 {pendingDecision.deltaLines.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
+              {pendingDecision.modelNotes?.length > 0 && (
+                <>
+                  <p><strong>Hiệu ứng bối cảnh:</strong></p>
+                  <ul className="model-notes">
+                    {pendingDecision.modelNotes.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
               <p><strong>Kết quả xã hội:</strong> {pendingDecision.socialOutcome}</p>
               <p><strong>Kết quả thị trường:</strong> {pendingDecision.marketOutcome}</p>
               <p><strong>Kết quả quản trị:</strong> {pendingDecision.governanceOutcome}</p>
+              <p>
+                <strong>Hiệu ứng trễ quý sau:</strong> {pendingDecision.carryoverNarrative}
+              </p>
               <div className="timeline-box">
                 <p className="timeline-title">Khi nào các tác động này xảy ra?</p>
                 <div className="timeline-progress" aria-hidden="true">

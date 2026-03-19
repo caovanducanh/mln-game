@@ -260,6 +260,19 @@ body {
   gap: 6px;
 }
 
+.system-pulse {
+  margin-top: 10px;
+  border: 1px solid #98b6bf;
+  border-radius: 10px;
+  background: #f2fbff;
+  padding: 8px;
+}
+
+.system-pulse p {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
 .briefing-list li {
   line-height: 1.45;
 }
@@ -287,6 +300,13 @@ body {
 
 .result-deltas {
   margin: 0 0 10px;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.model-notes {
+  margin: 0 0 8px;
   padding-left: 18px;
   display: grid;
   gap: 4px;
